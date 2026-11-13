@@ -2,9 +2,8 @@ use core::time;
 use core::fmt::Write;
 
 use crate::utils::Url;
-use super::{status, CheckResult, CheckKind};
+use super::{status, CheckResult, CheckResultSender, CheckKind};
 
-use tokio::sync::mpsc;
 use compact_str::CompactString;
 
 pub struct Kafka {
@@ -13,7 +12,7 @@ pub struct Kafka {
 }
 
 impl Kafka {
-    pub async fn run(self, result_pipe: mpsc::Sender<CheckResult>) {
+    pub async fn run(self, result_pipe: CheckResultSender) {
         let Self { destination, timeout } = self;
         let servers = vec![
             destination.host_port().to_owned()

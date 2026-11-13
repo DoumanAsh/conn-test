@@ -1,4 +1,5 @@
 use core::fmt;
+use core::future::Future;
 
 use crate::utils::Url;
 
@@ -48,6 +49,16 @@ pub struct CheckResult {
     pub log: String,
 }
 
+pub struct CheckResultSender(mpsc::Sender<CheckResult>);
+
+impl CheckResultSender {
+    #[inline]
+    fn send(&self, mut result: CheckResult) -> impl Future<Output = Result<(), mpsc::error::SendError<CheckResult>>> + Send {
+        result.destination.make_non_sensitive();
+        self.0.send(result)
+    }
+}
+
 macro_rules! impl_task {
     ($($name:ident),+ $(,)?) => {
 
@@ -74,10 +85,10 @@ pub async fn task(mut task_pipe: mpsc::Receiver<Task>, result_pipe: mpsc::Sender
     while let Some(task) = task_pipe.recv().await {
         match task {
             Task::Tcp(task) => {
-                tokio::task::spawn(task.run(result_pipe.clone()));
+                tokio::task::spawn(task.run(CheckResultSender(result_pipe.clone())));
             },
             Task::Kafka(task) => {
-                tokio::task::spawn(task.run(result_pipe.clone()));
+                tokio::task::spawn(task.run(CheckResultSender(result_pipe.clone())));
             },
         }
     }

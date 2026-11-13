@@ -1,14 +1,13 @@
 use core::fmt::Write;
 
 use crate::utils::Url;
-use super::{status, CheckResult, CheckKind};
+use super::{status, CheckResult, CheckResultSender, CheckKind};
 
 use compact_str::CompactString;
 use tokio::{time, net};
-use tokio::sync::mpsc;
 use tokio::io::AsyncWriteExt;
 
-async fn run_check_on(addrs: impl IntoIterator<Item = std::net::SocketAddr>, destination: Url, timeout: time::Duration, result_pipe: mpsc::Sender<CheckResult>) {
+async fn run_check_on(addrs: impl IntoIterator<Item = std::net::SocketAddr>, destination: Url, timeout: time::Duration, result_pipe: CheckResultSender) {
     let mut tcp_msg = CompactString::new("");
     let mut tcp_log = String::new();
     let mut addrs_ok = 0u16;
@@ -50,7 +49,7 @@ pub struct Tcp {
 }
 
 impl Tcp {
-    pub async fn run(self, result_pipe: mpsc::Sender<CheckResult>) {
+    pub async fn run(self, result_pipe: CheckResultSender) {
         let Self { destination, timeout } = self;
 
         if let Ok(addr) = destination.host().parse::<std::net::IpAddr>() {

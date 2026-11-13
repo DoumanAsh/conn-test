@@ -53,7 +53,7 @@ fn should_verify_url() {
     assert_eq!(url.to_string(), "https://user:****@test.com:8080/echo");
 
     let input = compact_str::CompactString::const_new("user:pass@test-no-schema.com:8080/echo");
-    let url = Url::parse(input).expect("parse url");
+    let mut url = Url::parse(input).expect("parse url");
     assert_eq!(url.schema(), None);
     assert_eq!(url.username(), Some("user"));
     assert_eq!(url.password(), Some("pass"));
@@ -64,4 +64,6 @@ fn should_verify_url() {
     assert_eq!(url.path(), "/echo");
     assert_eq!(url.to_string(), "user:****@test-no-schema.com:8080/echo");
 
+    url.make_non_sensitive();
+    assert_eq!(url.as_str(), "user:****@test-no-schema.com:8080/echo");
 }

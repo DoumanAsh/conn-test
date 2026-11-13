@@ -139,6 +139,22 @@ impl Url {
     pub fn port_u16(&self) -> Option<u16> {
         self.port().and_then(|port| port.parse().ok())
     }
+
+    #[inline(always)]
+    pub fn make_non_sensitive(&mut self) {
+        use core::fmt::Write;
+
+        if self.password().map(|pass| !pass.is_empty()).unwrap_or(false) {
+            let mut new = compact_str::CompactString::new("");
+            let _ = write!(&mut new, "{}", self);
+            self.inner = new;
+        }
+    }
+
+    #[inline(always)]
+    pub fn as_str(&self) -> &str {
+        self.inner.as_str()
+    }
 }
 
 impl fmt::Debug for Url {
