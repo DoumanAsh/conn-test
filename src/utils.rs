@@ -10,7 +10,7 @@ pub struct Url {
     host_start: u16,
     port_start: u16,
     path_start: u16,
-    user_start: u16,
+    user_start: Option<u16>,
     pass_start: u16,
 }
 
@@ -27,7 +27,7 @@ impl Url {
         }
 
         let path_start;
-        let mut user_start = 0;
+        let mut user_start = None;
         let mut pass_start = 0;
         let mut host_start = 0;
         let mut port_start = 0;
@@ -38,7 +38,7 @@ impl Url {
             Some(value) => value,
             None => unreach!()
         };
-        let rest = match value_parts.next() {
+        let mut rest = match value_parts.next() {
             Some(rest) => {
                 schema_end = schema_or_rest.len() as u16;
                 host_start = schema_end + Self::SCHEMA_SEP.len() as u16;
@@ -47,22 +47,22 @@ impl Url {
             None => schema_or_rest
         };
 
-        let mut host = if let Some((host, _path)) = rest.split_once(Self::PATH_SEP) {
+        if let Some((auth, real_rest)) = rest.split_once(Self::AUTH_SEP) {
+            user_start = Some(host_start);
+            if let Some((user, _pass)) = auth.split_once(':') {
+                pass_start = host_start + user.len() as u16 + 1
+            }
+            host_start += auth.len() as u16 + 1;
+            rest = real_rest;
+        }
+
+        let host = if let Some((host, _path)) = rest.split_once(Self::PATH_SEP) {
             path_start = host_start + host.len() as u16;
             host
         } else {
             path_start = value.len() as _;
             rest
         };
-
-        if let Some((auth, real_host)) = host.split_once(Self::AUTH_SEP) {
-            user_start = host_start;
-            if let Some((user, _pass)) = auth.split_once(':') {
-                pass_start = user_start + user.len() as u16 + 1
-            }
-            host_start += auth.len() as u16 + 1;
-            host = real_host;
-        }
 
         if let Some((host, _port)) = host.split_once(':') {
             port_start = host_start + host.len() as u16 + 1;
@@ -90,15 +90,12 @@ impl Url {
 
     #[inline(always)]
     pub fn username(&self) -> Option<&str> {
-        if self.user_start == 0 {
-            None
-        } else {
-            let end = match self.pass_start {
-                0 => self.host_start - 1,
-                pass_start => pass_start - 1,
-            };
-            Some(&self.inner[self.user_start as usize..end as usize])
-        }
+        let user_start = self.user_start?;
+        let end = match self.pass_start {
+            0 => self.host_start - 1,
+            pass_start => pass_start - 1,
+        };
+        Some(&self.inner[user_start as usize..end as usize])
     }
 
     #[inline(always)]

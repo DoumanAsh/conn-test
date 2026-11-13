@@ -16,7 +16,7 @@ impl Kafka {
     pub async fn run(self, result_pipe: mpsc::Sender<CheckResult>) {
         let Self { destination, timeout } = self;
         let servers = vec![
-            destination.host().to_owned()
+            destination.host_port().to_owned()
         ];
         let deadline = if timeout.is_zero() {
             None
