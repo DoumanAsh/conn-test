@@ -16,10 +16,17 @@ include = [
 ]
 publish = false
 
+# Connectivity general
 [dependencies.tokio]
 version = "1"
 default-features = false
 features = ["time", "rt", "net", "sync", "signal", "macros", "io-util"]
+
+[dependencies.rskafka]
+version = "0.6"
+default-features = false
+features = ["transport-tls"]
+#features = ["transport-tls-aws-lc-rs"]
 
 # CLI dependencies
 [dependencies.arg]

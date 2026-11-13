@@ -19,6 +19,12 @@ struct Args {
     #[arg(long)]
     ///Hostname alongside port to check by simple TCP connection
     tcp: Vec<Url>,
+    #[arg(long, default_value = "5")]
+    ///Specifies timeout in seconds for Kafka connections. Defaults to 5s
+    kafka_timeout: u32,
+    #[arg(long)]
+    ///Bootstrap broker to check by performing connection over plain SASL. Credentials can be supplied in URL
+    kafka: Vec<Url>,
 }
 
 async fn await_done(checks_done: tokio::sync::oneshot::Receiver<()>, term: impl Future<Output = ()>) {
@@ -37,7 +43,17 @@ fn process_checks(args: Args, tasks: sync::mpsc::Sender<checks::Task>, mut resul
             timeout: tokio::time::Duration::from_secs(args.tcp_timeout as _),
             destination,
         };
-        if tasks.blocking_send(checks::Task::Tcp(tcp)).is_err() {
+        if tasks.blocking_send(tcp.into()).is_err() {
+            break;
+        }
+    }
+
+    for destination in args.kafka {
+        let kafka = checks::Kafka {
+            timeout: tokio::time::Duration::from_secs(args.kafka_timeout as _),
+            destination,
+        };
+        if tasks.blocking_send(kafka.into()).is_err() {
             break;
         }
     }

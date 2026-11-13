@@ -11,12 +11,15 @@ mod status {
 }
 pub mod tcp;
 pub use tcp::Tcp;
+pub mod kafka;
+pub use kafka::Kafka;
 
 #[repr(u8)]
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum CheckKind {
     Dns,
     Tcp,
+    Kafka,
 }
 
 impl CheckKind {
@@ -25,6 +28,7 @@ impl CheckKind {
         match self {
             Self::Dns => "DNS",
             Self::Tcp => "TCP",
+            Self::Kafka => "KAFKA",
         }
     }
 }
@@ -44,15 +48,36 @@ pub struct CheckResult {
     pub log: String,
 }
 
-pub enum Task {
-    Tcp(tcp::Tcp)
+macro_rules! impl_task {
+    ($($name:ident),+ $(,)?) => {
+
+        pub enum Task {
+            $(
+                $name($name),
+            )+
+        }
+
+        $(
+            impl From<$name> for Task {
+                #[inline(always)]
+                fn from(task: $name) -> Self {
+                    Self::$name(task)
+                }
+            }
+        )+
+    };
 }
+
+impl_task!(Tcp, Kafka);
 
 pub async fn task(mut task_pipe: mpsc::Receiver<Task>, result_pipe: mpsc::Sender<CheckResult>) {
     while let Some(task) = task_pipe.recv().await {
         match task {
-            Task::Tcp(tcp) => {
-                tokio::task::spawn(tcp.run(result_pipe.clone()));
+            Task::Tcp(task) => {
+                tokio::task::spawn(task.run(result_pipe.clone()));
+            },
+            Task::Kafka(task) => {
+                tokio::task::spawn(task.run(result_pipe.clone()));
             },
         }
     }
