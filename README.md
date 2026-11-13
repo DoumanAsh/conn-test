@@ -1,6 +1,8 @@
 # conn-test
 
 [![Rust](https://github.com/DoumanAsh/conn-test/actions/workflows/rust.yml/badge.svg)](https://github.com/DoumanAsh/conn-test/actions/workflows/rust.yml)
+[![Hub](https://img.shields.io/badge/Docker-Hub-2496ed.svg)](https://hub.docker.com/r/douman/conn-test/tags)
+[![Quay](https://img.shields.io/badge/quay.io-douman%2Fconn--test-blue)](https://quay.io/repository/doumanash/conn-test)
 
 Simple utility to test connectivity
 
