@@ -1,0 +1,48 @@
+[package]
+name = "conn-test"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Connectivity testing utility"
+license = "BSL-1.0"
+keywords = ["connection", "test"]
+repository = "https://github.com/DoumanAsh/conn-test"
+readme = "README.md"
+include = [
+    "**/*.rs",
+    "Cargo.toml",
+    "LICENSE",
+    "README.md"
+]
+publish = false
+
+[dependencies.tokio]
+version = "1"
+default-features = false
+features = ["time", "rt", "net", "sync", "signal", "macros", "io-util"]
+
+# CLI dependencies
+[dependencies.arg]
+version = "0.4.7"
+features = ["std"]
+
+[dependencies.tabled]
+version = "0.22"
+default-features = false
+features = ["std"]
+
+[dependencies.panic-ext]
+version = "2"
+features = ["alloc"]
+
+# Data structures
+[dependencies.compact_str]
+version = "0.10"
+default-features = false
+
+[profile.release]
+lto = true
+opt-level = 3
+codegen-units = 1
+strip = true
+debug = false
