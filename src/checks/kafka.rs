@@ -1,7 +1,7 @@
 use core::time;
 use core::fmt::Write;
 
-use crate::utils::Url;
+use crate::utils::{self, Url};
 use super::{status, CheckResult, CheckResultSender, CheckKind};
 
 use compact_str::CompactString;
@@ -26,7 +26,14 @@ impl Kafka {
             deadline,
             ..Default::default()
         };
-        let builder = rskafka::client::ClientBuilder::new(servers).client_id("conn-test").backoff_config(backoff);
+        let mut builder = rskafka::client::ClientBuilder::new(servers).client_id("conn-test").backoff_config(backoff);
+
+        match destination.schema() {
+            Some("SASL_PLAINTEXT") => (),
+            _ => {
+                builder = builder.tls_config(utils::rusttls_config().clone());
+            }
+        };
 
         let result = if let Some(user) = destination.username() {
             let creds = rskafka::client::Credentials {
@@ -38,6 +45,8 @@ impl Kafka {
             builder.build()
         };
 
+        let kind = CheckKind::Kafka;
+        let log = String::new();
         match result.await {
             Ok(client) => match client.list_topics().await {
                 Ok(topics) => {
@@ -55,22 +64,22 @@ impl Kafka {
                     let mut message = CompactString::new("Topics/Partitions count: ");
                     let _ = write!(&mut message, "{topics_num}/{partitions_num}");
                     let _ = result_pipe.send(CheckResult {
-                        kind: CheckKind::Kafka,
+                        kind,
                         status: status::OK,
                         destination,
                         message,
-                        log: String::new()
+                        log,
                     }).await;
                 },
                 Err(error) => {
                     let mut message = CompactString::new("Metadata read error: ");
                     let _ = write!(&mut message, "{error}");
                     let _ = result_pipe.send(CheckResult {
-                        kind: CheckKind::Kafka,
+                        kind,
                         status: status::ERROR,
                         destination,
                         message,
-                        log: String::new()
+                        log,
                     }).await;
                 }
             },
@@ -78,11 +87,11 @@ impl Kafka {
                 let mut message = CompactString::new("Connection failed: ");
                 let _ = write!(&mut message, "{error}");
                 let _ = result_pipe.send(CheckResult {
-                    kind: CheckKind::Kafka,
+                    kind,
                     status: status::ERROR,
                     destination,
                     message,
-                    log: String::new()
+                    log,
                 }).await;
             }
         }

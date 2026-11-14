@@ -28,6 +28,14 @@ default-features = false
 features = ["transport-tls"]
 #features = ["transport-tls-aws-lc-rs"]
 
+[dependencies.rustls]
+version = "0.23"
+default-features = false
+
+[dependencies.webpki-roots]
+version = "1"
+default-features = false
+
 # CLI dependencies
 [dependencies.arg]
 version = "0.4.7"

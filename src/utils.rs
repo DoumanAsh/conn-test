@@ -1,4 +1,17 @@
 use core::fmt;
+use std::sync::{Arc, OnceLock};
+
+pub fn rusttls_config() -> &'static Arc<rustls::ClientConfig> {
+    static CONFIG: OnceLock<Arc<rustls::ClientConfig>> = OnceLock::new();
+
+    CONFIG.get_or_init(|| {
+        let certs = rustls::RootCertStore {
+            roots: webpki_roots::TLS_SERVER_ROOTS.to_vec()
+        };
+
+        Arc::new(rustls::ClientConfig::builder().with_root_certificates(certs).with_no_client_auth())
+    })
+}
 
 #[derive(Clone)]
 ///Parsed semi valid url limited in length to `u16::MAX` bytes
@@ -175,8 +188,8 @@ impl fmt::Display for Url {
             fmt.write_str(user)?;
             if let Some(password) = self.password() {
                 fmt.write_str(":")?;
-                for _ in 0..password.len() {
-                    fmt.write_str("*")?;
+                if !password.is_empty() {
+                    fmt.write_str("***")?;
                 }
             }
             fmt.write_str("@")?;
