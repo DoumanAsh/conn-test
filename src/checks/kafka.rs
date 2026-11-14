@@ -14,8 +14,18 @@ pub struct Kafka {
 impl Kafka {
     pub async fn run(self, result_pipe: CheckResultSender) {
         let Self { destination, timeout } = self;
+
+        let mut server = String::new();
+        server.push(':');
+        server.push_str(destination.host());
+        if let Some(port) = destination.port() {
+            server.push_str(port);
+        } else {
+            server.push_str("9092");
+        }
+
         let servers = vec![
-            destination.host_port().to_owned()
+            server
         ];
         let deadline = if timeout.is_zero() {
             None
