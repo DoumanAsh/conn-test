@@ -14,6 +14,8 @@ pub mod tcp;
 pub use tcp::Tcp;
 pub mod kafka;
 pub use kafka::Kafka;
+pub mod mongo;
+pub use mongo::Mongo;
 
 #[repr(u8)]
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -21,6 +23,7 @@ pub enum CheckKind {
     Dns,
     Tcp,
     Kafka,
+    Mongo,
 }
 
 impl CheckKind {
@@ -30,6 +33,7 @@ impl CheckKind {
             Self::Dns => "DNS",
             Self::Tcp => "TCP",
             Self::Kafka => "KAFKA",
+            Self::Mongo => "MONGO",
         }
     }
 }
@@ -79,7 +83,7 @@ macro_rules! impl_task {
     };
 }
 
-impl_task!(Tcp, Kafka);
+impl_task!(Tcp, Kafka, Mongo);
 
 pub async fn task(mut task_pipe: mpsc::Receiver<Task>, result_pipe: mpsc::Sender<CheckResult>) {
     while let Some(task) = task_pipe.recv().await {
@@ -88,6 +92,9 @@ pub async fn task(mut task_pipe: mpsc::Receiver<Task>, result_pipe: mpsc::Sender
                 tokio::task::spawn(task.run(CheckResultSender(result_pipe.clone())));
             },
             Task::Kafka(task) => {
+                tokio::task::spawn(task.run(CheckResultSender(result_pipe.clone())));
+            },
+            Task::Mongo(task) => {
                 tokio::task::spawn(task.run(CheckResultSender(result_pipe.clone())));
             },
         }

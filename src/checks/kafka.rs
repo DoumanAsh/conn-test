@@ -1,6 +1,7 @@
 use core::time;
 use core::fmt::Write;
 
+use crate::APP_NAME;
 use crate::utils::{self, Url};
 use super::{status, CheckResult, CheckResultSender, CheckKind};
 
@@ -36,7 +37,7 @@ impl Kafka {
             deadline,
             ..Default::default()
         };
-        let mut builder = rskafka::client::ClientBuilder::new(servers).client_id("conn-test").backoff_config(backoff);
+        let mut builder = rskafka::client::ClientBuilder::new(servers).client_id(APP_NAME).backoff_config(backoff);
 
         match destination.schema() {
             Some("SASL_PLAINTEXT") => (),

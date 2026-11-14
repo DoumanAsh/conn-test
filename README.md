@@ -9,6 +9,7 @@ Simple utility to test connectivity
 ## Usage
 
 ```
+conn-test 0.1.0
 Connectivity testing utility
 
 USAGE: [OPTIONS]
@@ -20,4 +21,6 @@ OPTIONS:
          --tcp <tcp>...                   Hostname alongside port to check by simple TCP connection. Can be init via env CONN_TEST_TCP with comma separator
          --kafka_timeout <kafka_timeout>  Specifies timeout in seconds for Kafka connections. Defaults to 5s. Can be set via env CONN_TEST_KAFKA_TIMEOUT
          --kafka <kafka>...               Bootstrap broker to check by performing connection over plain SASL. Credentials can be supplied in URL. Can be init via env CONN_TEST_KAFKA with comma separator
+         --mongo_timeout <mongo_timeout>  Specifies timeout in seconds for Mongo connections. Defaults to 5s. Can be set via env CONN_TEST_MONGO_TIMEOUT
+         --mongo <mongo>...               MongoDB connection URLs. Credentials can be supplied in URL. Can be init via env CONN_TEST_MONGO with comma separator
 ```
