@@ -1,4 +1,5 @@
-use core::fmt;
+use core::{net, fmt, mem};
+use core::future::Future;
 use std::sync::{Arc, OnceLock};
 
 pub fn rusttls_config() -> &'static Arc<rustls::ClientConfig> {
@@ -11,6 +12,53 @@ pub fn rusttls_config() -> &'static Arc<rustls::ClientConfig> {
 
         Arc::new(rustls::ClientConfig::builder().with_root_certificates(certs).with_no_client_auth())
     })
+}
+
+pub enum LookupError {
+    Error(std::io::Error),
+    Panic(tokio::task::JoinError),
+    InvalidDns,
+}
+
+impl fmt::Display for LookupError {
+    #[inline(always)]
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Error(error) => fmt.write_fmt(format_args!("Lookup failed: {error}")),
+            Self::Panic(error) => fmt.write_fmt(format_args!("Lookup {error}")),
+            Self::InvalidDns => fmt.write_str("Lookup impossible for invalid DNS name")
+        }
+    }
+}
+
+pub enum LookupResult<I: IntoIterator<Item = net::SocketAddr>> {
+    AlreadyAddr(net::SocketAddr),
+    ResolvedAddrs(I),
+}
+
+pub fn lookup_host(url: &Url, default_port: u16) -> impl Future<Output = Result<LookupResult<impl IntoIterator<Item = net::SocketAddr, IntoIter = impl Iterator<Item = net::SocketAddr> + Send> + Send + 'static>, LookupError>> + Send + 'static {
+    //253 bytes of hostname + port
+    let mut buffer = str_buf::StrBuf::<{str_buf::capacity(1 + 253 + mem::size_of::<u16>())}>::new();
+    buffer.push_str(url.host());
+    let port = url.port_u16().unwrap_or(default_port);
+
+    async move {
+        if let Ok(addr) = buffer.as_str().parse::<std::net::IpAddr>() {
+            Ok(LookupResult::AlreadyAddr(net::SocketAddr::new(addr, port)))
+        } else {
+            buffer.push_str(":");
+            if fmt::Write::write_fmt(&mut buffer, format_args!("{port}")).is_err() {
+                //If cannot fit buffer, then it means domain name is bigger than 253 bytes, which is not allowed for DNS requests
+                return Err(LookupError::InvalidDns);
+            }
+
+            match tokio::task::spawn_blocking(move || std::net::ToSocketAddrs::to_socket_addrs(&buffer)).await {
+                Ok(Ok(addrs)) => Ok(LookupResult::ResolvedAddrs(addrs)),
+                Ok(Err(error)) => Err(LookupError::Error(error)),
+                Err(error) => Err(LookupError::Panic(error)),
+            }
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -189,7 +237,9 @@ impl fmt::Display for Url {
             if let Some(password) = self.password() {
                 fmt.write_str(":")?;
                 if !password.is_empty() {
-                    fmt.write_str("***")?;
+                    for _ in password.bytes() {
+                        fmt.write_str("*")?;
+                    }
                 }
             }
             fmt.write_str("@")?;
@@ -202,6 +252,8 @@ impl fmt::Display for Url {
 
 impl core::str::FromStr for Url {
     type Err = ();
+
+    #[inline]
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match Url::parse(compact_str::CompactString::new(value.trim())) {
             Some(url) => Ok(url),

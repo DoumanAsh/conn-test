@@ -1,6 +1,6 @@
 use core::fmt::Write;
 
-use crate::utils::Url;
+use crate::utils::{Url, LookupResult, lookup_host};
 use super::{status, CheckResult, CheckResultSender, CheckKind};
 
 use compact_str::CompactString;
@@ -52,23 +52,23 @@ impl Tcp {
     pub async fn run(self, result_pipe: CheckResultSender) {
         let Self { destination, timeout } = self;
 
-        if let Ok(addr) = destination.host().parse::<std::net::IpAddr>() {
-            let port = destination.port_u16().unwrap_or(80);
-            return run_check_on([std::net::SocketAddr::new(addr, port)], destination, timeout, result_pipe).await;
-        }
+        match lookup_host(&destination, 80).await {
+            Ok(LookupResult::AlreadyAddr(addr)) => {
+                run_check_on([addr], destination, timeout, result_pipe).await
+            },
+            Ok(LookupResult::ResolvedAddrs(addrs)) => {
+                let _ = result_pipe.send(CheckResult {
+                    kind: CheckKind::Dns,
+                    status: status::OK,
+                    destination: destination.clone(),
+                    message: CompactString::new("Host resolved"),
+                    log: String::new()
+                }).await;
 
-        let mut host = destination.host().to_owned();
-        host.push(':');
-        if let Some(port) = destination.port() {
-            host.push_str(port);
-        } else {
-            host.push_str("80");
-        }
-
-        let addrs = match tokio::net::lookup_host(host).await {
-            Ok(addrs) => addrs,
+                run_check_on(addrs, destination, timeout, result_pipe).await
+            },
             Err(error) => {
-                let mut message = CompactString::new("Lookup failed: ");
+                let mut message = CompactString::new("");
                 let _ = write!(&mut message, "{error}");
                 let _ = result_pipe.send(CheckResult {
                     kind: CheckKind::Dns,
@@ -77,18 +77,7 @@ impl Tcp {
                     message,
                     log: String::new()
                 }).await;
-                return;
             }
-        };
-
-        let _ = result_pipe.send(CheckResult {
-            kind: CheckKind::Dns,
-            status: status::OK,
-            destination: destination.clone(),
-            message: CompactString::new("Host resolved"),
-            log: String::new()
-        }).await;
-
-        run_check_on(addrs, destination, timeout, result_pipe).await;
+        }
     }
 }

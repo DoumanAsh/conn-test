@@ -60,6 +60,11 @@ features = ["alloc"]
 version = "0.10"
 default-features = false
 
+[dependencies.str-buf]
+version = "4"
+default-features = false
+features = ["std"]
+
 [profile.release]
 lto = true
 opt-level = 3
