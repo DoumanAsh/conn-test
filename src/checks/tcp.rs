@@ -1,7 +1,7 @@
 use core::fmt::Write;
 
 use crate::utils::{Url, LookupResult, lookup_host};
-use super::{status, CheckResult, CheckResultSender, CheckKind};
+use super::{CheckStatus, CheckResult, CheckResultSender, CheckKind};
 
 use compact_str::CompactString;
 use tokio::{time, net};
@@ -33,9 +33,9 @@ async fn run_check_on(addrs: impl IntoIterator<Item = std::net::SocketAddr>, des
     let _ = result_pipe.send(CheckResult {
         kind: CheckKind::Tcp,
         status: if addrs_ok > 0 {
-            status::OK
+            CheckStatus::Ok
         } else {
-            status::ERROR
+            CheckStatus::Error
         },
         destination,
         message: tcp_msg,
@@ -59,7 +59,7 @@ impl Tcp {
             Ok(LookupResult::ResolvedAddrs(addrs)) => {
                 let _ = result_pipe.send(CheckResult {
                     kind: CheckKind::Dns,
-                    status: status::OK,
+                    status: CheckStatus::Ok,
                     destination: destination.clone(),
                     message: CompactString::new("Host resolved"),
                     log: String::new()
@@ -72,7 +72,7 @@ impl Tcp {
                 let _ = write!(&mut message, "{error}");
                 let _ = result_pipe.send(CheckResult {
                     kind: CheckKind::Dns,
-                    status: status::ERROR,
+                    status: CheckStatus::Error,
                     destination,
                     message,
                     log: String::new()

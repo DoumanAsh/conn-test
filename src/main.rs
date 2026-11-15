@@ -43,7 +43,8 @@ async fn await_done(checks_done: tokio::sync::oneshot::Receiver<()>, term: impl 
     }
 }
 
-fn process_checks(args: Args, tasks: sync::mpsc::Sender<checks::Task>, mut results: sync::mpsc::Receiver<checks::CheckResult>, checks_done: sync::oneshot::Sender<()>) {
+//returns `true` if no failure detected
+fn process_checks(args: Args, tasks: sync::mpsc::Sender<checks::Task>, mut results: sync::mpsc::Receiver<checks::CheckResult>, checks_done: sync::oneshot::Sender<()>) -> ExitCode {
     for destination in args.tcp {
         let tcp = checks::Tcp {
             timeout: tokio::time::Duration::from_secs(args.tcp_timeout as _),
@@ -77,8 +78,12 @@ fn process_checks(args: Args, tasks: sync::mpsc::Sender<checks::Task>, mut resul
     //Drop tasks pipe to notify tasks dispatcher
     drop(tasks);
 
+    let mut process_result = ExitCode::SUCCESS;
     let mut result_out = Vec::new();
     while let Some(result) = results.blocking_recv() {
+        if result.status.is_err() {
+            process_result = ExitCode::FAILURE
+        }
         if !args.quiet && !result.log.is_empty() {
             println!(">{} task '{}' log:\n{}", result.kind, result.destination, result.log);
         }
@@ -91,6 +96,8 @@ fn process_checks(args: Args, tasks: sync::mpsc::Sender<checks::Task>, mut resul
     }
 
     let _ = checks_done.send(());
+
+    process_result
 }
 
 fn run(rt: tokio::runtime::LocalRuntime, args: Args) -> ExitCode {
@@ -120,12 +127,13 @@ fn run(rt: tokio::runtime::LocalRuntime, args: Args) -> ExitCode {
     }
 
     rt.shutdown_background();
-    if let Err(error) = thread.join() {
-        let message = panic_ext::downcast_payload(&error);
-        eprintln!("Unable to finish checks thread: {message}");
-        ExitCode::FAILURE
-    } else {
-        ExitCode::SUCCESS
+    match thread.join() {
+        Ok(result) => result,
+        Err(error) => {
+            let message = panic_ext::downcast_payload(&error);
+            eprintln!("Unable to finish checks thread: {message}");
+            ExitCode::FAILURE
+        }
     }
 }
 

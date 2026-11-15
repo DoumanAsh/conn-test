@@ -26,7 +26,7 @@ impl TabledDimensions {
         //once populated with header's default width, proceed to iterate over data computing max for every column
         for data in data {
             dimensions[0] = cmp::max(dimensions[0], get_string_width(data.kind.as_str()));
-            dimensions[1] = cmp::max(dimensions[1], get_string_width(data.status));
+            dimensions[1] = cmp::max(dimensions[1], get_string_width(data.status.as_str()));
             dimensions[2] = cmp::max(dimensions[2], get_string_width(data.destination.as_str()));
             dimensions[3] = cmp::max(dimensions[3], get_string_width(&data.message));
         }
@@ -54,7 +54,7 @@ pub fn tabled(data: &[CheckResult]) -> tabled::tables::CompactTable<impl tabled:
     let dimensions = TabledDimensions::compute(data);
     let data = data.iter().map(|result| [
         result.kind.as_str(),
-        result.status,
+        result.status.as_str(),
         result.destination.as_str(),
         result.message.as_str(),
     ]);

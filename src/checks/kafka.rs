@@ -3,7 +3,7 @@ use core::fmt::Write;
 
 use crate::APP_NAME;
 use crate::utils::{self, Url};
-use super::{status, CheckResult, CheckResultSender, CheckKind};
+use super::{CheckStatus, CheckResult, CheckResultSender, CheckKind};
 
 use compact_str::CompactString;
 
@@ -76,7 +76,7 @@ impl Kafka {
                     let _ = write!(&mut message, "{topics_num}/{partitions_num}");
                     let _ = result_pipe.send(CheckResult {
                         kind,
-                        status: status::OK,
+                        status: CheckStatus::Ok,
                         destination,
                         message,
                         log,
@@ -87,7 +87,7 @@ impl Kafka {
                     let _ = write!(&mut message, "{error}");
                     let _ = result_pipe.send(CheckResult {
                         kind,
-                        status: status::ERROR,
+                        status: CheckStatus::Error,
                         destination,
                         message,
                         log,
@@ -99,7 +99,7 @@ impl Kafka {
                 let _ = write!(&mut message, "{error}");
                 let _ = result_pipe.send(CheckResult {
                     kind,
-                    status: status::ERROR,
+                    status: CheckStatus::Error,
                     destination,
                     message,
                     log,

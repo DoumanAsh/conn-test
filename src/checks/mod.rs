@@ -6,16 +6,41 @@ use crate::utils::Url;
 use compact_str::CompactString;
 use tokio::sync::mpsc;
 
-mod status {
-    pub const OK: &str = "OK";
-    pub const ERROR: &str = "ERR";
-}
 pub mod tcp;
 pub use tcp::Tcp;
 pub mod kafka;
 pub use kafka::Kafka;
 pub mod mongo;
 pub use mongo::Mongo;
+
+#[repr(u8)]
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub enum CheckStatus {
+    Ok,
+    Error,
+}
+
+impl CheckStatus {
+    #[inline(always)]
+    pub const fn is_err(&self) -> bool {
+        matches!(self, Self::Error)
+    }
+
+    #[inline(always)]
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            Self::Ok => "OK",
+            Self::Error => "ERROR",
+        }
+    }
+}
+
+impl fmt::Display for CheckStatus {
+    #[inline(always)]
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt.write_str(self.as_str())
+    }
+}
 
 #[repr(u8)]
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -47,7 +72,7 @@ impl fmt::Display for CheckKind {
 
 pub struct CheckResult {
     pub kind: CheckKind,
-    pub status: &'static str,
+    pub status: CheckStatus,
     pub destination: Url,
     pub message: CompactString,
     pub log: String,

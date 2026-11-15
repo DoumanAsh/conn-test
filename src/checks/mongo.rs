@@ -3,7 +3,7 @@ use core::fmt::Write;
 
 use crate::APP_NAME;
 use crate::utils::Url;
-use super::{status, CheckResult, CheckResultSender, CheckKind};
+use super::{CheckStatus, CheckResult, CheckResultSender, CheckKind};
 
 use compact_str::CompactString;
 
@@ -35,7 +35,7 @@ impl Mongo {
                 let _ = write!(&mut message, "URL error: {error}");
                 let _ = result_pipe.send(CheckResult {
                     kind,
-                    status: status::ERROR,
+                    status: CheckStatus::Error,
                     destination,
                     message,
                     log,
@@ -50,7 +50,7 @@ impl Mongo {
                 let _ = write!(&mut message, "Client error: {error}");
                 let _ = result_pipe.send(CheckResult {
                     kind,
-                    status: status::ERROR,
+                    status: CheckStatus::Error,
                     destination,
                     message,
                     log,
@@ -69,7 +69,7 @@ impl Mongo {
                 let _ = message.pop();
                 let _ = result_pipe.send(CheckResult {
                     kind,
-                    status: status::OK,
+                    status: CheckStatus::Ok,
                     destination,
                     message,
                     log,
@@ -79,7 +79,7 @@ impl Mongo {
                 let _ = write!(&mut message, "{error}");
                 let _ = result_pipe.send(CheckResult {
                     kind,
-                    status: status::ERROR,
+                    status: CheckStatus::Error,
                     destination,
                     message,
                     log,
