@@ -29,6 +29,7 @@ async fn run_check_on(addrs: impl IntoIterator<Item = std::net::SocketAddr>, des
             }
         }
     }
+    tcp_msg.pop();
 
     let _ = result_pipe.send(CheckResult {
         kind: CheckKind::Tcp,

@@ -30,7 +30,7 @@ impl CheckStatus {
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Ok => "OK",
-            Self::Error => "ERROR",
+            Self::Error => "ERR",
         }
     }
 }
