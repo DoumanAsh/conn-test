@@ -17,8 +17,8 @@ impl Kafka {
         let Self { destination, timeout } = self;
 
         let mut server = String::new();
-        server.push(':');
         server.push_str(destination.host());
+        server.push(':');
         if let Some(port) = destination.port() {
             server.push_str(port);
         } else {
