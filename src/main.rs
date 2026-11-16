@@ -31,6 +31,13 @@ struct Args {
     #[arg(long)]
     ///MongoDB connection URLs. Credentials can be supplied in URL
     mongo: Vec<Url>,
+    #[arg(long, default_value = "5")]
+    ///Specifies timeout in seconds for Redis connections. Defaults to 5s
+    redis_timeout: u32,
+    #[arg(long)]
+    ///Redis connection URLs. Credentials can be supplied in URL
+    redis: Vec<Url>,
+
 }
 
 async fn await_done(checks_done: tokio::sync::oneshot::Receiver<()>, term: impl Future<Output = ()>) {
@@ -46,31 +53,41 @@ async fn await_done(checks_done: tokio::sync::oneshot::Receiver<()>, term: impl 
 //returns `true` if no failure detected
 fn process_checks(args: Args, tasks: sync::mpsc::Sender<checks::Task>, mut results: sync::mpsc::Receiver<checks::CheckResult>, checks_done: sync::oneshot::Sender<()>) -> ExitCode {
     for destination in args.tcp {
-        let tcp = checks::Tcp {
+        let task = checks::Tcp {
             timeout: tokio::time::Duration::from_secs(args.tcp_timeout as _),
             destination,
         };
-        if tasks.blocking_send(tcp.into()).is_err() {
+        if tasks.blocking_send(task.into()).is_err() {
             break;
         }
     }
 
     for destination in args.kafka {
-        let kafka = checks::Kafka {
+        let task = checks::Kafka {
             timeout: tokio::time::Duration::from_secs(args.kafka_timeout as _),
             destination,
         };
-        if tasks.blocking_send(kafka.into()).is_err() {
+        if tasks.blocking_send(task.into()).is_err() {
             break;
         }
     }
 
     for destination in args.mongo {
-        let kafka = checks::Mongo {
+        let task = checks::Mongo {
             timeout: tokio::time::Duration::from_secs(args.mongo_timeout as _),
             destination,
         };
-        if tasks.blocking_send(kafka.into()).is_err() {
+        if tasks.blocking_send(task.into()).is_err() {
+            break;
+        }
+    }
+
+    for destination in args.redis {
+        let task = checks::Redis {
+            timeout: tokio::time::Duration::from_secs(args.redis_timeout as _),
+            destination,
+        };
+        if tasks.blocking_send(task.into()).is_err() {
             break;
         }
     }

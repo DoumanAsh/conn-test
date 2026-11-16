@@ -42,7 +42,7 @@ impl Kafka {
         match destination.schema() {
             Some("SASL_PLAINTEXT") => (),
             _ => {
-                builder = builder.tls_config(utils::rusttls_config().clone());
+                builder = builder.tls_config(utils::net::rustls_config().clone());
             }
         };
 

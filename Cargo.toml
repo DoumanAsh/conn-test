@@ -28,6 +28,15 @@ default-features = false
 features = ["transport-tls"]
 #features = ["transport-tls-aws-lc-rs"]
 
+# TLS
+[dependencies.tokio-rustls]
+version = "0.26"
+default-features = false
+
+[dependencies.rustls-pki-types]
+version = "1"
+default-features = false
+
 [dependencies.rustls]
 version = "0.23"
 default-features = false

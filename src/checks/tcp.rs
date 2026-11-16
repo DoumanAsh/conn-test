@@ -1,3 +1,4 @@
+use std::io;
 use core::fmt::Write;
 
 use crate::utils::{Url, LookupResult, lookup_host};
@@ -6,6 +7,26 @@ use super::{CheckStatus, CheckResult, CheckResultSender, CheckKind};
 use compact_str::CompactString;
 use tokio::{time, net};
 use tokio::io::AsyncWriteExt;
+
+pub async fn connect_to_one_addr(addrs: impl IntoIterator<Item = std::net::SocketAddr>, timeout: time::Duration) -> Option<Result<net::TcpStream, io::Error>> {
+    let mut result = None;
+    for addr in addrs {
+        match time::timeout(timeout, net::TcpStream::connect(addr)).await {
+            Ok(Ok(socket)) => {
+                result = Some(Ok(socket));
+                break;
+            },
+            Ok(Err(error)) => {
+                result = Some(Err(error))
+            }
+            Err(error) => {
+                result = Some(Err(io::Error::new(io::ErrorKind::TimedOut, error)));
+            }
+        }
+    }
+
+    result
+}
 
 async fn run_check_on(addrs: impl IntoIterator<Item = std::net::SocketAddr>, destination: Url, timeout: time::Duration, result_pipe: CheckResultSender) {
     let mut tcp_msg = CompactString::new("");

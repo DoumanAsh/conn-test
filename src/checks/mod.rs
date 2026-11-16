@@ -12,6 +12,8 @@ pub mod kafka;
 pub use kafka::Kafka;
 pub mod mongo;
 pub use mongo::Mongo;
+pub mod redis;
+pub use redis::Redis;
 
 #[repr(u8)]
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -47,8 +49,10 @@ impl fmt::Display for CheckStatus {
 pub enum CheckKind {
     Dns,
     Tcp,
+    Tls,
     Kafka,
     Mongo,
+    Redis,
 }
 
 impl CheckKind {
@@ -57,8 +61,10 @@ impl CheckKind {
         match self {
             Self::Dns => "DNS",
             Self::Tcp => "TCP",
+            Self::Tls => "TLS",
             Self::Kafka => "KAFKA",
             Self::Mongo => "MONGO",
+            Self::Redis => "REDIS",
         }
     }
 }
@@ -105,23 +111,20 @@ macro_rules! impl_task {
                 }
             }
         )+
+
+
+        pub async fn task(mut task_pipe: mpsc::Receiver<Task>, result_pipe: mpsc::Sender<CheckResult>) {
+            while let Some(task) = task_pipe.recv().await {
+                match task {
+                    $(
+                        Task::$name(task) => {
+                            tokio::task::spawn(task.run(CheckResultSender(result_pipe.clone())));
+                        }
+                    )+
+                }
+            }
+        }
     };
 }
 
-impl_task!(Tcp, Kafka, Mongo);
-
-pub async fn task(mut task_pipe: mpsc::Receiver<Task>, result_pipe: mpsc::Sender<CheckResult>) {
-    while let Some(task) = task_pipe.recv().await {
-        match task {
-            Task::Tcp(task) => {
-                tokio::task::spawn(task.run(CheckResultSender(result_pipe.clone())));
-            },
-            Task::Kafka(task) => {
-                tokio::task::spawn(task.run(CheckResultSender(result_pipe.clone())));
-            },
-            Task::Mongo(task) => {
-                tokio::task::spawn(task.run(CheckResultSender(result_pipe.clone())));
-            },
-        }
-    }
-}
+impl_task!(Tcp, Kafka, Mongo, Redis);

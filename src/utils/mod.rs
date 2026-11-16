@@ -1,18 +1,7 @@
-use core::{net, fmt, mem};
+use core::{fmt, mem};
 use core::future::Future;
-use std::sync::{Arc, OnceLock};
 
-pub fn rusttls_config() -> &'static Arc<rustls::ClientConfig> {
-    static CONFIG: OnceLock<Arc<rustls::ClientConfig>> = OnceLock::new();
-
-    CONFIG.get_or_init(|| {
-        let certs = rustls::RootCertStore {
-            roots: webpki_roots::TLS_SERVER_ROOTS.to_vec()
-        };
-
-        Arc::new(rustls::ClientConfig::builder().with_root_certificates(certs).with_no_client_auth())
-    })
-}
+pub mod net;
 
 pub enum LookupError {
     Error(std::io::Error),
@@ -205,10 +194,16 @@ impl Url {
     pub fn make_non_sensitive(&mut self) {
         use core::fmt::Write;
 
-        if self.password().map(|pass| !pass.is_empty()).unwrap_or(false) {
-            let mut new = compact_str::CompactString::new("");
-            let _ = write!(&mut new, "{}", self);
-            self.inner = new;
+        if let Some(password) = self.password() {
+            if !password.is_empty() {
+                let pass_len = password.len() as u16;
+                let mut new = compact_str::CompactString::new("");
+                let _ = write!(&mut new, "{}", self);
+                self.inner = new;
+                self.host_start = self.host_start.saturating_sub(pass_len - 1);
+                self.port_start = self.port_start.saturating_sub(pass_len - 1);
+                self.path_start = self.path_start.saturating_sub(pass_len - 1);
+            }
         }
     }
 
@@ -237,9 +232,7 @@ impl fmt::Display for Url {
             if let Some(password) = self.password() {
                 fmt.write_str(":")?;
                 if !password.is_empty() {
-                    for _ in password.bytes() {
-                        fmt.write_str("*")?;
-                    }
+                    fmt.write_str("*")?;
                 }
             }
             fmt.write_str("@")?;

@@ -23,6 +23,8 @@ OPTIONS:
          --kafka <kafka>...               Bootstrap broker to check by performing connection over plain SASL. Credentials can be supplied in URL. Can be init via env CONN_TEST_KAFKA with comma separator
          --mongo_timeout <mongo_timeout>  Specifies timeout in seconds for Mongo connections. Defaults to 5s. Can be set via env CONN_TEST_MONGO_TIMEOUT
          --mongo <mongo>...               MongoDB connection URLs. Credentials can be supplied in URL. Can be init via env CONN_TEST_MONGO with comma separator
+         --redis_timeout <redis_timeout>  Specifies timeout in seconds for Redis connections. Defaults to 5s. Can be set via env CONN_TEST_REDIS_TIMEOUT
+         --redis <redis>...               Redis connection URLs. Credentials can be supplied in URL. Can be init via env CONN_TEST_REDIS with comma separator
 ```
 
 ## Output example
