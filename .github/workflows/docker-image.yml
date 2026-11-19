@@ -39,6 +39,7 @@ jobs:
       packages: write
       attestations: write
       id-token: write
+      pull-requests: write
 
     steps:
       - name: Checkout repository
@@ -102,6 +103,14 @@ jobs:
           provenance: false
           tags: |
             ${{ env.DOCKER_IMAGE_NAME }}:latest
+
+      - name: Check vulnerabilities
+        uses: DoumanAsh/douman-ci/.github/actions/trivy-report-vuln@master
+        with:
+          image_ref: "${{ env.DOCKER_IMAGE_NAME }}:latest"
+          image_name: "conn-test"
+          pr_comment: ${{ github.event_name == 'pull_request' }}
+          pr_comment_recreate: true
 
       - name: Push Docker image
         id: push-docker
