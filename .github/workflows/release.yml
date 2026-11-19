@@ -18,7 +18,7 @@ jobs:
         os: [macos-latest, windows-latest, ubuntu-latest]
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: Install Rust Unix
       if: runner.os != 'Windows'
@@ -45,21 +45,20 @@ jobs:
         cargo --version
         rustc --version
 
+    - name: Install cargo auditable
+      uses: DoumanAsh/douman-ci/.github/actions/install-cargo-auditable@master
+
     - name: Build release Win
       if: runner.os == 'Windows'
-      run: Invoke-Expression "cargo build --release
+      run: |
+        Invoke-Expression "cargo auditable build --release"
+        Compress-Archive -Path target/release/conn-test.exe -Destination conn-test-${{runner.os}}.zip
 
     - name: Build release Unix
       if: runner.os != 'Windows'
-      run: cargo build --release
-
-    - name: Pack Unix
-      if: runner.os != 'Windows'
-      run: zip -j conn-test-${{runner.os}}.zip target/release/conn-test
-
-    - name: Pack Windows
-      if: runner.os == 'Windows'
-      run: Compress-Archive -Path target/release/conn-test.exe -Destination conn-test-${{runner.os}}.zip
+      run: |
+        cargo auditable build --release
+        zip -j conn-test-${{runner.os}}.zip target/release/conn-test
 
     - name: Upload to release Unix
       if: runner.os != 'Windows'
@@ -81,38 +80,39 @@ jobs:
         $url = "https://uploads.github.com/repos/$($env:GITHUB_REPOSITORY)/releases/$($event.release.id)/assets?name=conn-test-${{runner.os}}.zip";
         Invoke-WebRequest -Headers $headers -Method POST -Infile conn-test-${{runner.os}}.zip -ContentType 'application/zip' -Uri $url
 
-  cross-linux-build:
+  musl-linux-build:
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        target: [x86_64-unknown-linux-musl, armv7-unknown-linux-musleabihf]
+        arch: [amd64, arm64]
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
-    - name: Install Rust Unix
+    - name: Determine rustc target
+      id: rustc
+      shell: sh
+      env:
+        ARCH: ${{ matrix.arch }}
       run: |
-        if rustup --version >/dev/null 2>&1; then
-            rustup update
-        else
-             curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain stable
-             echo ::add-path::$HOME/.cargo/bin
-        fi
+        case "$ARCH" in \
+            amd64) rustArch='x86_64-unknown-linux-musl' ;; \
+            arm64) rustArch='aarch64-unknown-linux-musl' ;; \
+            *) echo >&2 "unsupported architecture: $ARCH"; exit 1 ;; \
+        esac; \
+        echo "target=$rustArch" >> "$GITHUB_OUTPUT"
 
-    - name: Rust version
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: ${{ matrix.arch }}
+
+    - name: Build ${{ steps.rustc.outputs.target }} target
+      shell: sh
       run: |
-        cargo --version
-        rustc --version
-
-    - name: Install cross
-      run: cargo install cross
-
-    - name: Build release
-      run: cross build --release --target ${{matrix.target}} --features $CARGO_FEATURE_SELECT
-
-    - name: Pack
-      run: zip -j conn-test-${{matrix.target}}.zip target/${{matrix.target}}/release/conn-test
+        docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace --platform linux/${{ matrix.arch }} ghcr.io/doumanash/rust-musl:latest cargo auditable build --release --target ${{ steps.rustc.outputs.target }}
+        zip -j conn-test-${{ steps.rustc.outputs.target }}.zip target/${{ steps.rustc.outputs.target }}/release/conn-test
 
     - name: Upload to release Unix
       run: |
@@ -122,5 +122,5 @@ jobs:
           -XPOST \
           -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
           -H "Content-Type: application/zip" \
-          --upload-file "conn-test-${{matrix.target}}.zip" \
-          "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$(jq --raw-output '.release.id' $GITHUB_EVENT_PATH)/assets?name=conn-test-${{matrix.target}}.zip"
+          --upload-file "conn-test-${{ steps.rustc.outputs.target }}.zip" \
+          "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$(jq --raw-output '.release.id' $GITHUB_EVENT_PATH)/assets?name=conn-test-${{ steps.rustc.outputs.target }}.zip"
