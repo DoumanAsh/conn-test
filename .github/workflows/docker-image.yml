@@ -104,14 +104,6 @@ jobs:
           tags: |
             ${{ env.DOCKER_IMAGE_NAME }}:latest
 
-      - name: Check vulnerabilities
-        uses: DoumanAsh/douman-ci/.github/actions/trivy-report-vuln@master
-        with:
-          image_ref: "${{ env.DOCKER_IMAGE_NAME }}:latest"
-          image_name: "conn-test"
-          pr_comment: ${{ github.event_name == 'pull_request' }}
-          pr_comment_recreate: true
-
       - name: Push Docker image
         id: push-docker
         if: github.event_name != 'pull_request'
@@ -124,9 +116,19 @@ jobs:
           sbom: false
           provenance: false
           tags: |
+            ${{ env.DOCKER_IMAGE_NAME }}:latest
             ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}:latest
             ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}:${{ steps.version.outputs.value }}
             ${{ env.GITHUB_REGISTRY }}/${{ env.GITHUB_IMAGE_NAME }}:latest
             ${{ env.GITHUB_REGISTRY }}/${{ env.GITHUB_IMAGE_NAME }}:${{ steps.version.outputs.value }}
             ${{ env.QUAY_REGISTRY }}/${{ env.GITHUB_IMAGE_NAME }}:latest
             ${{ env.QUAY_REGISTRY }}/${{ env.GITHUB_IMAGE_NAME }}:${{ steps.version.outputs.value }}
+
+      - name: Check vulnerabilities
+        uses: DoumanAsh/douman-ci/.github/actions/trivy-report-vuln@master
+        with:
+          image_ref: "${{ env.DOCKER_IMAGE_NAME }}:latest"
+          image_name: "conn-test"
+          pr_comment: ${{ github.event_name == 'pull_request' }}
+          pr_comment_recreate: true
+
